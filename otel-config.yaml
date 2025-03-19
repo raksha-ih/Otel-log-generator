@@ -1,0 +1,59 @@
+# Receivers
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        
+# Processors
+processors:
+  batch:
+  resource:
+    attributes:
+      - key: tng_cluster_name
+        action: insert
+        value: "my-cluster"
+      - key: tng_cluster_workload
+        action: insert
+        value: "backend"
+      - key: tng_environment
+        action: insert
+        value: "production"
+      - key: tng_region
+        action: insert
+        value: "us-east-1"
+
+# Exporters
+exporters:
+  # (1)
+  # No Error but logs don't show up
+  loki:
+    endpoint: https://grafana-loki.us-east-1.production.grnds.com/loki/api/v1/push
+    headers:
+      X-Scope-OrgID: tenant-general
+
+  # (2) 
+  # Error: Exporting failed. Dropping data.        {"otelcol.component.id": "otlphttp", "otelcol.component.kind": "Exporter", "otelcol.signal": "logs", 
+  # "error": "not retryable error: Permanent error: rpc error: code = InvalidArgument desc = error exporting items, 
+  # request to https://grafana-loki.us-east-1.production.grnds.com/loki/api/v1/push responded with HTTP Status Code 400", "dropped_items": 1}
+  
+  # otlphttp:
+  #   logs_endpoint: https://grafana-loki.us-east-1.production.grnds.com/loki/api/v1/push
+  #   headers:
+  #     X-Scope-OrgID: tenant-general
+
+  # (3)
+  # Error: changes the endpoint to https://grafana-loki.us-east-1.production.grnds.com/loki/api/v1/push/logs
+  # otlphttp/logs:
+  #   endpoint: https://grafana-loki.us-east-1.production.grnds.com/loki/api/v1/push
+  #   headers:
+  #     X-Scope-OrgID: tenant-general
+
+service:
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [loki]
